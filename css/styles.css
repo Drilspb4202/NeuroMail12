@@ -3212,6 +3212,11 @@ input:checked + .api-mode-slider {
     margin-left: auto;
 }
 
+.attachment-size.empty-file {
+    color: #ff5252;
+    font-style: italic;
+}
+
 .download-button {
     margin-left: 10px;
     display: inline-flex;
@@ -3233,6 +3238,40 @@ input:checked + .api-mode-slider {
 
 .attachment-link:hover .download-button {
     background-color: #3a7bc8;
+}
+
+.attachment-link.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: rgba(230, 230, 230, 0.7);
+}
+
+.attachment-link.disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.attachment-link.disabled .download-button {
+    background-color: #e0e0e0;
+    cursor: not-allowed;
+}
+
+.attachment-link.disabled .download-button i.fa-ban {
+    color: #ff5252;
+}
+
+.attachment-link.disabled:hover {
+    background-color: #f5f5f5;
+    box-shadow: none;
+}
+
+/* Добавляем информационную подсказку для вложений */
+.attachments-info {
+    font-size: 0.8rem;
+    color: #888;
+    margin-top: 5px;
+    font-style: italic;
+    padding-left: 10px;
 }
 
 /* Стили для iframe и контента почты */
@@ -3288,19 +3327,4 @@ input:checked + .api-mode-slider {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
-}
-
-.attachment-link.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    background-color: rgba(230, 230, 230, 0.7);
-}
-
-.attachment-link.disabled:hover {
-    transform: none;
-    box-shadow: none;
-}
-
-.attachment-link.disabled .download-button {
-    background-color: #999;
 }

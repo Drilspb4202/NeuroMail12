@@ -1743,6 +1743,22 @@ class MailSlurpUI {
             attachmentsHeader.textContent = 'Вложения';
             attachmentsSection.appendChild(attachmentsHeader);
             
+            // Добавляем информационный блок для вложений
+            const attachmentsInfo = document.createElement('div');
+            attachmentsInfo.className = 'attachments-info';
+            
+            // Подсчитываем доступные и недоступные вложения
+            const emptyAttachments = email.attachments.filter(att => !att.size || att.size === 0).length;
+            const totalAttachments = email.attachments.length;
+            
+            if (emptyAttachments > 0) {
+                attachmentsInfo.textContent = `${totalAttachments} вложений (${emptyAttachments} пустых файлов недоступны для скачивания)`;
+            } else {
+                attachmentsInfo.textContent = `${totalAttachments} вложений`;
+            }
+            
+            attachmentsSection.appendChild(attachmentsInfo);
+            
             const attachmentsList = document.createElement('div');
             attachmentsList.className = 'attachments-list';
             
@@ -1751,7 +1767,11 @@ class MailSlurpUI {
                 
                 // Получаем имя файла и размер вложения
                 const filename = attachment.name || attachment.filename || 'Без имени';
-                const size = this.formatFileSize(attachment.size || 0);
+                const size = attachment.size || 0;
+                const formattedSize = this.formatFileSize(size);
+                
+                // Проверяем, доступно ли вложение для скачивания (имеет ID и размер > 0)
+                const isDownloadable = attachment.id && size > 0;
                 
                 // Создаем элемент вложения
                 const attachmentItem = document.createElement('div');
@@ -1762,14 +1782,13 @@ class MailSlurpUI {
                 link.className = 'attachment-link';
                 link.href = 'javascript:void(0)'; // Предотвращаем перезагрузку страницы
                 
-                // Убедимся, что у вложения есть ID
-                if (!attachment.id) {
-                    console.warn('Вложение без ID:', attachment);
-                    // Если ID отсутствует, создаем неактивную ссылку
+                // Если вложение недоступно, делаем ссылку неактивной
+                if (!isDownloadable) {
                     link.className += ' disabled';
-                    link.title = 'Вложение недоступно';
+                    link.title = size === 0 ? 'Вложение пустое (0 байт)' : 'Вложение недоступно';
+                    console.warn(`Вложение недоступно: ${filename}, размер: ${size}, ID: ${attachment.id || 'отсутствует'}`);
                 } else {
-                    // Если ID есть, устанавливаем для скачивания
+                    // Если вложение доступно, устанавливаем для скачивания
                     link.dataset.attachmentId = attachment.id;
                     
                     // Добавляем обработчик клика для скачивания
@@ -1828,13 +1847,28 @@ class MailSlurpUI {
                 // Размер файла
                 const sizeSpan = document.createElement('span');
                 sizeSpan.className = 'attachment-size';
-                sizeSpan.textContent = size;
+                sizeSpan.textContent = formattedSize;
+                
+                // Для пустых вложений добавляем специальную маркировку
+                if (size === 0) {
+                    sizeSpan.className += ' empty-file';
+                    sizeSpan.title = 'Пустой файл, скачивание невозможно';
+                }
+                
                 link.appendChild(sizeSpan);
                 
                 // Кнопка скачивания
                 const downloadButton = document.createElement('div');
                 downloadButton.className = 'download-button';
-                downloadButton.innerHTML = '<i class="fas fa-download"></i>';
+                
+                // Для недоступных вложений показываем соответствующую иконку
+                if (!isDownloadable) {
+                    downloadButton.innerHTML = '<i class="fas fa-ban"></i>';
+                    downloadButton.title = size === 0 ? 'Пустой файл' : 'Вложение недоступно';
+                } else {
+                    downloadButton.innerHTML = '<i class="fas fa-download"></i>';
+                }
+                
                 link.appendChild(downloadButton);
                 
                 attachmentItem.appendChild(link);
@@ -1876,63 +1910,85 @@ class MailSlurpUI {
                 throw new Error('ID вложения не определен');
             }
             
+            // Проверяем размер вложения
+            if (!attachment.size || attachment.size === 0) {
+                throw new Error('Вложение пустое (0 байт), скачивание невозможно');
+            }
+            
             console.log('Начало скачивания вложения:', attachmentId, filename);
             console.log('Данные вложения:', attachment);
             
             // Показываем индикатор загрузки
             this.showToast('Загрузка вложения...', 'info');
             
+            let success = false;
+            
             // Если есть прямая ссылка на скачивание, попробуем использовать её
             if (attachment.downloadUrl) {
                 try {
                     console.log('Пробуем скачать напрямую по URL:', attachment.downloadUrl);
                     
-                    // Создаем ссылку для скачивания
-                    const downloadLink = document.createElement('a');
-                    downloadLink.href = attachment.downloadUrl;
-                    downloadLink.download = filename || 'attachment';
-                    downloadLink.style.display = 'none';
-                    document.body.appendChild(downloadLink);
+                    // Создаем тестовый запрос для проверки доступности URL
+                    const testResponse = await fetch(attachment.downloadUrl, { method: 'HEAD' });
                     
-                    // Имитируем клик для начала скачивания
-                    downloadLink.click();
-                    
-                    // Удаляем ссылку
-                    setTimeout(() => {
-                        document.body.removeChild(downloadLink);
-                    }, 100);
-                    
-                    this.showToast('Вложение успешно скачано', 'success');
-                    return;
+                    if (testResponse.ok) {
+                        // Создаем ссылку для скачивания
+                        const downloadLink = document.createElement('a');
+                        downloadLink.href = attachment.downloadUrl;
+                        downloadLink.download = filename || 'attachment';
+                        downloadLink.style.display = 'none';
+                        document.body.appendChild(downloadLink);
+                        
+                        // Имитируем клик для начала скачивания
+                        downloadLink.click();
+                        
+                        // Удаляем ссылку
+                        setTimeout(() => {
+                            document.body.removeChild(downloadLink);
+                        }, 100);
+                        
+                        success = true;
+                        this.showToast('Вложение успешно скачано', 'success');
+                        return;
+                    } else {
+                        console.warn('URL вложения недоступен, код:', testResponse.status);
+                    }
                 } catch (directError) {
                     console.warn('Не удалось скачать напрямую по URL:', directError);
                     // Если не удалось скачать напрямую, продолжаем обычным способом
                 }
             }
             
-            // Скачиваем вложение через API
-            const blob = await this.app.api.downloadAttachment(attachmentId);
-            
-            // Создаем URL объекта Blob
-            const url = window.URL.createObjectURL(blob);
-            
-            // Создаем ссылку для скачивания
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename || 'attachment';
-            a.style.display = 'none';
-            document.body.appendChild(a);
-            
-            // Имитируем клик для начала скачивания
-            a.click();
-            
-            // Освобождаем URL объекта Blob
-            setTimeout(() => {
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            }, 100);
-            
-            this.showToast('Вложение успешно скачано', 'success');
+            if (!success) {
+                // Скачиваем вложение через API
+                const blob = await this.app.api.downloadAttachment(attachmentId);
+                
+                // Проверяем, что блоб не пустой
+                if (!blob || blob.size === 0) {
+                    throw new Error('Получен пустой файл. Возможно, вложение повреждено или недоступно.');
+                }
+                
+                // Создаем URL объекта Blob
+                const url = window.URL.createObjectURL(blob);
+                
+                // Создаем ссылку для скачивания
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename || 'attachment';
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                
+                // Имитируем клик для начала скачивания
+                a.click();
+                
+                // Освобождаем URL объекта Blob
+                setTimeout(() => {
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                }, 100);
+                
+                this.showToast('Вложение успешно скачано', 'success');
+            }
         } catch (error) {
             console.error('Ошибка при скачивании вложения:', error);
             this.showToast(`Ошибка при скачивании вложения: ${error.message}`, 'error');

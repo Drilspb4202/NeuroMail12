@@ -740,42 +740,155 @@ class MailSlurpUI {
             if (toElement) toElement.textContent = email.to?.join(', ') || 'Неизвестно';
             if (subjectElement) subjectElement.textContent = email.subject || '(Без темы)';
         
-        // Форматируем дату
-        const date = email.createdAt ? new Date(email.createdAt) : new Date();
-        const formattedDate = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
-            
+            // Форматируем дату
+            const date = email.createdAt ? new Date(email.createdAt) : new Date();
+            const formattedDate = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+                
             if (dateElement) dateElement.textContent = formattedDate;
         
-        // Очищаем контейнер тела письма
-        const emailBody = document.getElementById('email-body');
+            // Очищаем контейнер тела письма
+            const emailBody = document.getElementById('email-body');
             if (!emailBody) {
                 console.error('Контейнер тела письма не найден');
                 return;
             }
             
-        emailBody.innerHTML = '';
+            emailBody.innerHTML = '';
         
-        // Определяем формат письма
-        const format = this.determineEmailFormat(email);
-        
-        // Проверяем наличие тела письма
-        const body = email.body || '';
-        
-        // Обрабатываем тело письма в зависимости от формата
-            // Остальной код остается без изменений...
+            // Определяем формат письма
+            const format = this.determineEmailFormat(email);
+            
+            // Проверяем наличие тела письма
+            const body = email.body || '';
+            
+            // Обрабатываем тело письма в зависимости от формата
+            if (format === 'html') {
+                // Для HTML-писем: создаем безопасный iframe
+                const iframe = document.createElement('iframe');
+                iframe.sandbox = 'allow-same-origin allow-popups';
+                iframe.style.width = '100%';
+                iframe.style.height = '500px';
+                iframe.style.border = 'none';
+                iframe.style.overflow = 'auto';
+                
+                emailBody.appendChild(iframe);
+                
+                // Задаем содержимое после добавления в DOM
+                setTimeout(() => {
+                    try {
+                        const doc = iframe.contentDocument || iframe.contentWindow.document;
+                        doc.open();
+                        doc.write(body);
+                        doc.close();
+                        
+                        // Устанавливаем высоту iframe по содержимому
+                        setTimeout(() => {
+                            try {
+                                const height = doc.body.scrollHeight;
+                                iframe.style.height = `${height + 20}px`;
+                            } catch (e) {
+                                console.error('Ошибка при настройке высоты iframe:', e);
+                            }
+                        }, 100);
+                    } catch (e) {
+                        console.error('Ошибка при заполнении iframe:', e);
+                        emailBody.innerHTML = `<div class="email-plain-text">${body}</div>`;
+                    }
+                }, 0);
+            } else if (format === 'markdown' && window.markdownit) {
+                // Для Markdown: используем библиотеку markdown-it для рендеринга
+                try {
+                    const html = window.markdownit().render(body);
+                    const markdownContainer = document.createElement('div');
+                    markdownContainer.className = 'markdown-body';
+                    markdownContainer.innerHTML = html;
+                    emailBody.appendChild(markdownContainer);
+                } catch (e) {
+                    console.error('Ошибка при рендеринге Markdown:', e);
+                    emailBody.innerHTML = `<div class="email-plain-text">${body}</div>`;
+                }
+            } else {
+                // Для обычного текста: сохраняем переносы строк
+                const plainTextContainer = document.createElement('div');
+                plainTextContainer.className = 'email-plain-text';
+                plainTextContainer.textContent = body;
+                emailBody.appendChild(plainTextContainer);
+            }
+            
+            // Обрабатываем вложения, если они есть
+            if (email.attachments && email.attachments.length > 0) {
+                const attachmentsContainer = document.createElement('div');
+                attachmentsContainer.className = 'email-attachments';
+                
+                const attachmentsHeader = document.createElement('h4');
+                attachmentsHeader.textContent = 'Вложения:';
+                attachmentsContainer.appendChild(attachmentsHeader);
+                
+                const attachmentsList = document.createElement('ul');
+                email.attachments.forEach(attachment => {
+                    const item = document.createElement('li');
+                    const link = document.createElement('a');
+                    link.href = 'javascript:void(0)';
+                    link.dataset.attachmentId = attachment.id;
+                    link.textContent = attachment.name || 'Файл';
+                    link.addEventListener('click', () => this.onDownloadAttachment(attachment.id, attachment.name));
+                    item.appendChild(link);
+                    attachmentsList.appendChild(item);
+                });
+                
+                attachmentsContainer.appendChild(attachmentsList);
+                emailBody.appendChild(attachmentsContainer);
+            }
         } catch (error) {
             console.error('Ошибка при отображении письма:', error);
             this.showToast('Произошла ошибка при отображении письма', 'error');
         }
         
-        // В конце метода showEmailViewer, после обработки содержимого письма:
-        
         // Показываем просмотр письма
         const emailViewer = document.getElementById('email-viewer');
         if (emailViewer) {
             emailViewer.classList.add('active');
-                } else {
+        } else {
             console.error('Элемент просмотра письма (email-viewer) не найден');
+        }
+    }
+    
+    /**
+     * Обработчик скачивания вложения
+     * @param {string} attachmentId - ID вложения
+     * @param {string} fileName - Имя файла
+     */
+    onDownloadAttachment(attachmentId, fileName) {
+        try {
+            this.showToast('Скачивание вложения...', 'info');
+            
+            // Получаем API
+            const api = this.getApi();
+            
+            // Запускаем скачивание
+            api.downloadAttachment(attachmentId)
+                .then(blob => {
+                    // Создаем временную ссылку для скачивания
+                    const url = window.URL.createObjectURL(blob);
+                    const tempLink = document.createElement('a');
+                    tempLink.href = url;
+                    tempLink.download = fileName || 'attachment';
+                    tempLink.click();
+                    
+                    // Освобождаем URL
+                    setTimeout(() => {
+                        window.URL.revokeObjectURL(url);
+                    }, 100);
+                    
+                    this.showToast('Вложение успешно скачано', 'success');
+                })
+                .catch(error => {
+                    console.error('Ошибка при скачивании вложения:', error);
+                    this.showToast(`Ошибка скачивания: ${error.message}`, 'error');
+                });
+        } catch (error) {
+            console.error('Ошибка при обработке скачивания вложения:', error);
+            this.showToast(`Ошибка: ${error.message}`, 'error');
         }
     }
     
@@ -883,24 +996,24 @@ class MailSlurpUI {
             }
             
             // Переводим сообщение, если нужно
-            let displayMessage = message;
+        let displayMessage = message;
             if (translate && window.i18n && typeof window.i18n.translate === 'function') {
                 displayMessage = window.i18n.translate(message);
-            }
+        }
         
             // Безопасно устанавливаем текст
             try {
                 if (this.toast) {
-                    this.toast.textContent = displayMessage;
-                    this.toast.classList.add('active');
-                
+        this.toast.textContent = displayMessage;
+        this.toast.classList.add('active');
+        
                     // Автоматически скрываем через duration мс
                     clearTimeout(this.toastTimeout);
                     this.toastTimeout = setTimeout(() => {
                         if (this.toast) {
-                            this.toast.classList.remove('active');
+            this.toast.classList.remove('active');
                         }
-                    }, duration);
+        }, duration);
                 } else {
                     // Запасной вариант - выводим в консоль
                     console.log(displayMessage);
@@ -1803,187 +1916,51 @@ class MailSlurpUI {
             return;
         }
         
-        // Отображаем детали письма
-        this.showEmailViewer(email);
+        console.log('Отображение содержимого письма:', email);
         
-        // Получаем контейнер для тела письма
-            const emailBody = document.getElementById('email-body');
-        if (!emailBody) {
-            console.error('Не найден контейнер для тела письма');
-            return;
-        }
-        
-        console.log('Содержимое email для отладки:', email);
-        
-        // Проверяем наличие вложений в разных форматах
-        let hasAttachments = false;
-        let attachments = [];
-        
-        // Стандартный формат вложений
-        if (email.attachments && Array.isArray(email.attachments) && email.attachments.length > 0) {
-            hasAttachments = true;
-            attachments = email.attachments;
-        }
-        
-        // Альтернативный формат (проверяем mimeMessage)
-        if (!hasAttachments && email.mimeMessage && email.mimeMessage.attachments) {
-            if (Array.isArray(email.mimeMessage.attachments) && email.mimeMessage.attachments.length > 0) {
-                hasAttachments = true;
-                attachments = email.mimeMessage.attachments;
-            }
-        }
-        
-        // Еще один альтернативный формат, проверяем properties
-        if (!hasAttachments && email.properties && email.properties.attachments) {
-            if (Array.isArray(email.properties.attachments) && email.properties.attachments.length > 0) {
-                hasAttachments = true;
-                attachments = email.properties.attachments;
-            }
-        }
-        
-        // Также проверяем текст письма на наличие ключевых слов о вложениях
-        if (!hasAttachments && email.body) {
-            const bodyLower = email.body.toLowerCase();
-            if (
-                (bodyLower.includes('прикреплен') || bodyLower.includes('приложен') || 
-                 bodyLower.includes('attached') || bodyLower.includes('attachment')) && 
-                (email.from && email.from.includes('vpn-naruzhu.com'))
-            ) {
-                // Это письмо с сервиса VPN с вложением, которое не определилось автоматически
-                // Создаем искусственное вложение
-                hasAttachments = true;
-                const fileId = (email.id || '') + '-key';
-                attachments = [{
-                    id: fileId,
-                    name: 'AmneziWG.conf',
-                    size: 1024,
-                    contentType: 'application/octet-stream'
-                }];
-                
-                console.log('Обнаружено неявное вложение в письме от VPN сервиса:', attachments);
-            }
-        }
-        
-        // Если есть вложения, добавляем их
-        if (hasAttachments && attachments.length > 0) {
-            // Создаем контейнер для вложений
-            const attachmentsContainer = document.createElement('div');
-            attachmentsContainer.className = 'email-attachments';
+        try {
+            // Отображаем детали письма и его содержимое
+            this.showEmailViewer(email);
+        } catch (error) {
+            console.error('Ошибка при отображении содержимого письма:', error);
+            this.showToast('Произошла ошибка при отображении письма', 'error');
             
-            // Добавляем заголовок
-            const attachmentsHeader = document.createElement('h4');
-            attachmentsHeader.textContent = 'Вложения:';
-            attachmentsContainer.appendChild(attachmentsHeader);
-            
-            // Добавляем список вложений
-            const attachmentsList = document.createElement('ul');
-            attachmentsList.className = 'attachments-list';
-            
-            attachments.forEach(attachment => {
-                try {
-                    // Убедимся, что attachment - объект
-                    const attachmentObj = typeof attachment === 'string' 
-                        ? { id: attachment, name: `attachment-${attachment.substring(0, 8)}` } 
-                        : attachment;
-                        
-                const item = document.createElement('li');
-                item.className = 'attachment-item';
-                
-                // Создаем ссылку для скачивания
-                const link = document.createElement('a');
+            // Запасной вариант - отобразить базовую информацию без форматирования
+            try {
+                const emailBody = document.getElementById('email-body');
+                if (emailBody) {
+                    emailBody.innerHTML = '';
                     
-                    // ВАЖНО: Вместо того чтобы использовать attachment.downloadUrl,
-                    // добавим обработчик события для корректного скачивания
-                    link.href = 'javascript:void(0)';
-                    // Убедимся, что у вложения есть ID
-                    link.dataset.attachmentId = attachmentObj.id || '';
-                    link.addEventListener('click', async (e) => {
-                        e.preventDefault();
-                        const attachmentId = e.currentTarget.dataset.attachmentId;
-                        if (!attachmentId) {
-                            this.showToast('Идентификатор вложения не найден', 'error');
-                            return;
-                        }
-                        
-                        try {
-                            this.showToast('Скачивание вложения...', 'info');
-                            
-                            // Используем новый метод getApi для получения доступа к API
-                            const api = this.getApi();
-                            const blob = await api.downloadAttachment(attachmentId);
-                            
-                            // Создаем временную ссылку для скачивания blob
-                            const url = window.URL.createObjectURL(blob);
-                            const tempLink = document.createElement('a');
-                            tempLink.href = url;
-                            tempLink.download = attachmentObj.name || 'attachment';
-                            tempLink.click();
-                            
-                            // Освобождаем URL
-                            setTimeout(() => {
-                                window.URL.revokeObjectURL(url);
-                            }, 100);
-                            
-                            this.showToast('Вложение успешно скачано', 'success');
-                        } catch (error) {
-                            console.error('Ошибка при скачивании вложения:', error);
-                            this.showToast(`Ошибка скачивания: ${error.message}`, 'error');
-                            
-                            // Дополнительная информация для отладки
-                            console.debug('AttachmentId:', attachmentId);
-                        }
-                    });
+                    // Проверяем наличие тела письма
+                    const bodyContent = email.body || '(Пустое содержимое)';
                     
-                link.target = '_blank';
-                    link.download = attachmentObj.name || 'attachment';
-                
-                // Иконка в зависимости от типа файла
-                const icon = document.createElement('i');
-                icon.className = 'fas fa-file';
-                
-                // Определяем тип файла по расширению
-                    const fileExtension = (attachmentObj.name || '').split('.').pop().toLowerCase();
-                
-                if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(fileExtension)) {
-                    icon.className = 'fas fa-file-image';
-                } else if (['pdf'].includes(fileExtension)) {
-                    icon.className = 'fas fa-file-pdf';
-                } else if (['doc', 'docx'].includes(fileExtension)) {
-                    icon.className = 'fas fa-file-word';
-                } else if (['xls', 'xlsx'].includes(fileExtension)) {
-                    icon.className = 'fas fa-file-excel';
-                    } else if (['zip', 'rar', '7z', 'tar', 'gz', 'conf'].includes(fileExtension)) {
-                    icon.className = 'fas fa-file-archive';
-                } else if (['txt', 'md'].includes(fileExtension)) {
-                    icon.className = 'fas fa-file-alt';
-                } else if (['html', 'htm', 'xml', 'json', 'js', 'css'].includes(fileExtension)) {
-                    icon.className = 'fas fa-file-code';
+                    // Создаем элемент для отображения
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'email-plain-text';
+                    contentDiv.style.whiteSpace = 'pre-wrap';
+                    contentDiv.style.padding = '10px';
+                    contentDiv.style.border = '1px solid #ddd';
+                    contentDiv.style.borderRadius = '4px';
+                    contentDiv.style.backgroundColor = '#f8f8f8';
+                    contentDiv.style.fontSize = '14px';
+                    contentDiv.style.lineHeight = '1.5';
+                    contentDiv.style.fontFamily = 'monospace';
+                    
+                    // Устанавливаем текст
+                    contentDiv.textContent = bodyContent;
+                    
+                    // Добавляем в DOM
+                    emailBody.appendChild(contentDiv);
+                    
+                    // Показываем область просмотра
+                    const emailViewer = document.getElementById('email-viewer');
+                    if (emailViewer) {
+                        emailViewer.classList.add('active');
+                    }
                 }
-                
-                link.appendChild(icon);
-                
-                // Добавляем название файла
-                const fileName = document.createElement('span');
-                    fileName.textContent = attachmentObj.name || 'Без имени';
-                link.appendChild(fileName);
-                
-                // Добавляем размер файла, если есть
-                    if (attachmentObj.size) {
-                    const fileSize = document.createElement('span');
-                    fileSize.className = 'attachment-size';
-                        fileSize.textContent = this.formatFileSize(attachmentObj.size);
-                    link.appendChild(fileSize);
-                }
-                
-                item.appendChild(link);
-                attachmentsList.appendChild(item);
-                } catch (error) {
-                    console.error('Ошибка при обработке вложения:', error, attachment);
-                }
-            });
-            
-            attachmentsContainer.appendChild(attachmentsList);
-            emailBody.appendChild(attachmentsContainer);
+            } catch (fallbackError) {
+                console.error('Критическая ошибка при запасном отображении:', fallbackError);
+            }
         }
     }
     

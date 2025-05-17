@@ -3,38 +3,10 @@
  */
 class ApiKeyPool {
     constructor() {
-        // Пул публичных API ключей
+        // Пул публичных API ключей - заменен на один новый ключ
         this.publicKeys = [
             {
-                key: '2be6b637e36441f8b279d4831975686dc8b163effad42436f0b6619b857e2e0a',
-                usageCount: 0,
-                lastUsed: null,
-                isExhausted: false,
-                monthlyReset: new Date().getTime()
-            },
-            {
-                key: 'c7d140c42a533bbbf7ebcef781131a9d77059471029d1031396e5583831a75ac',
-                usageCount: 0,
-                lastUsed: null,
-                isExhausted: false,
-                monthlyReset: new Date().getTime()
-            },
-            {
-                key: '899f2fb27c2b2419b964bd1e54815d793a09b0ae02d88cd4ebaba806590e4ffb',
-                usageCount: 0,
-                lastUsed: null,
-                isExhausted: false,
-                monthlyReset: new Date().getTime()
-            },
-            {
-                key: '23cd428561aacbf7e7ace9c8f3c33699bd5cea33b912bc14bd2c392fbe1d76e7',
-                usageCount: 0,
-                lastUsed: null,
-                isExhausted: false,
-                monthlyReset: new Date().getTime()
-            },
-            {
-                key: '27241a5ff4bd1967ddec80043b12a65060c33033a5fbb1bb24f24d39e7877000',
+                key: '4e8656d3dd08ec68e5388618223b3f3ae91930861ee162d1dfa2012e792a8f14',
                 usageCount: 0,
                 lastUsed: null,
                 isExhausted: false,

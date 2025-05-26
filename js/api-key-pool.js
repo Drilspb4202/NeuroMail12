@@ -6,7 +6,7 @@ class ApiKeyPool {
         // Пул публичных API ключей - заменен на один новый ключ
         this.publicKeys = [
             {
-                key: '4e8656d3dd08ec68e5388618223b3f3ae91930861ee162d1dfa2012e792a8f14',
+                key: 'e3f5aed72d23d2a1b2bf9b5037da742d7c8647c4cddc93b66568c3193edc92f6',
                 usageCount: 0,
                 lastUsed: null,
                 isExhausted: false,

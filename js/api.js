@@ -16,7 +16,7 @@ class MailSlurpApi {
         this.keyPool.forceInitialState();
         
         // Защищенный публичный API ключ - берется из пула
-        this.publicApiKey = this.keyPool.getNextAvailableKey() || '4e8656d3dd08ec68e5388618223b3f3ae91930861ee162d1dfa2012e792a8f14';
+        this.publicApiKey = this.keyPool.getNextAvailableKey() || 'e3f5aed72d23d2a1b2bf9b5037da742d7c8647c4cddc93b66568c3193edc92f6';
         
         // Обновляем также значение в localStorage
         localStorage.setItem('mailslurp_api_key', this.publicApiKey);

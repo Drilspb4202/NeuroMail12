@@ -88,35 +88,7 @@
         // Устанавливаем новые работающие ключи
         const apiKeys = [
             {
-                key: 'f5f454f136d60796f54bd09c0a42ae3ebf86c1b2da168ffe3fe556f909c03e27',
-                usageCount: 0,
-                lastUsed: null,
-                isExhausted: false,
-                monthlyReset: new Date().getTime()
-            },
-            {
-                key: '6e3d32ab5bfc10b96c45509bc8c3a8e834437182e25210bd2b9a089e65ff0136',
-                usageCount: 0,
-                lastUsed: null,
-                isExhausted: false,
-                monthlyReset: new Date().getTime()
-            },
-            {
-                key: '35e2335cd08c2f29e28eef9d6ad19c0f32b09891eb39626063a71b81e3087f81',
-                usageCount: 0,
-                lastUsed: null,
-                isExhausted: false,
-                monthlyReset: new Date().getTime()
-            },
-            {
-                key: '3de775797c8432f33e3a9e9e8abab4547b85ab8c0bd924f513946a66c8597cd5',
-                usageCount: 0,
-                lastUsed: null,
-                isExhausted: false,
-                monthlyReset: new Date().getTime()
-            },
-            {
-                key: '1509c2c04c2f954a606ffa1a03d60422d16de7d8c14eb1ca386cb922271bd735',
+                key: 'e3f5aed72d23d2a1b2bf9b5037da742d7c8647c4cddc93b66568c3193edc92f6',
                 usageCount: 0,
                 lastUsed: null,
                 isExhausted: false,

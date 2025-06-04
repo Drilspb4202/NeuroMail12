@@ -96,7 +96,7 @@ class DataGenerator {
     generateLogin(firstName, lastName) {
         const name = firstName.toLowerCase();
         const surname = lastName.toLowerCase();
-        
+
         // Несколько вариантов формирования логина
         const loginFormats = [
             // имя.фамилия + случайные цифры
@@ -110,10 +110,23 @@ class DataGenerator {
             // имя + фамилия с дублированной последней буквой + случайные цифры
             () => `${name}.${surname}${surname.slice(-1)}${Math.floor(Math.random() * 1000)}`
         ];
-        
-        // Выбираем случайный формат и генерируем логин
-        const randomFormat = loginFormats[Math.floor(Math.random() * loginFormats.length)];
-        return randomFormat();
+
+        // Генерируем логин, стараясь избежать дубликатов
+        let login;
+        let attempts = 0;
+        do {
+            const randomFormat = loginFormats[Math.floor(Math.random() * loginFormats.length)];
+            login = randomFormat();
+            attempts++;
+        } while (this.generatedUsernames.has(login) && attempts < 10);
+
+        // Если после нескольких попыток логин все ещё не уникален, добавляем случайный суффикс
+        if (this.generatedUsernames.has(login)) {
+            login += Math.floor(Math.random() * 1000);
+        }
+
+        this.generatedUsernames.add(login);
+        return login;
     }
     
     /**

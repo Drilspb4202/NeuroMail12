@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сброс API ключей</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .success {
+            color: #27ae60;
+            font-weight: bold;
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #e8f8f5;
+            border-radius: 3px;
+            display: none;
+        }
+        .error {
+            color: #c0392b;
+            font-weight: bold;
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #fadbd8;
+            border-radius: 3px;
+            display: none;
+        }
+        .info {
+            background-color: #eef7fa;
+            padding: 10px;
+            border-radius: 3px;
+            margin-bottom: 20px;
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Сброс API ключей NeuroMail</h1>
+        
+        <div class="info">
+            <p>Эта страница позволяет выполнить полный сброс API ключей и локальных данных приложения NeuroMail.</p>
+            <p>Используйте эту функцию, если у вас возникают проблемы с созданием временных почтовых ящиков или при ошибках API.</p>
+        </div>
+        
+        <button id="resetButton">Сбросить все API ключи и данные</button>
+        
+        <div id="successMessage" class="success">
+            API ключи успешно сброшены. <a href="index.html">Вернуться в приложение</a>
+        </div>
+        
+        <div id="errorMessage" class="error">
+            Произошла ошибка при сбросе ключей. Пожалуйста, попробуйте еще раз.
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('resetButton').addEventListener('click', function() {
+            try {
+                // Список новых API ключей
+                const newApiKeys = [
+                    'f5f454f136d60796f54bd09c0a42ae3ebf86c1b2da168ffe3fe556f909c03e27',
+                    '6e3d32ab5bfc10b96c45509bc8c3a8e834437182e25210bd2b9a089e65ff0136',
+                    '35e2335cd08c2f29e28eef9d6ad19c0f32b09891eb39626063a71b81e3087f81',
+                    '3de775797c8432f33e3a9e9e8abab4547b85ab8c0bd924f513946a66c8597cd5',
+                    '1509c2c04c2f954a606ffa1a03d60422d16de7d8c14eb1ca386cb922271bd735'
+                ];
+                
+                // Удаляем все текущие данные из localStorage
+                localStorage.clear();
+                
+                // Создаем новое состояние пула ключей с новыми ключами
+                const apiKeys = newApiKeys.map(key => ({
+                    key: key,
+                    usageCount: 0,
+                    lastUsed: null,
+                    isExhausted: false,
+                    monthlyReset: new Date().getTime()
+                }));
+                
+                // Формируем новое состояние
+                const newState = {
+                    publicKeys: apiKeys,
+                    currentKeyIndex: 0
+                };
+                
+                // Сохраняем в localStorage
+                localStorage.setItem('api_key_pool_state', JSON.stringify(newState));
+                localStorage.setItem('mailslurp_api_key', newApiKeys[0]);
+                localStorage.setItem('api_mode', 'public');
+                
+                // Показываем сообщение об успехе
+                document.getElementById('successMessage').style.display = 'block';
+            } catch (error) {
+                console.error('Ошибка при сбросе ключей:', error);
+                document.getElementById('errorMessage').style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html> 

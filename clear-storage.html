@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Очистка кэша API ключей</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .warning {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Очистка кэша API ключей</h1>
+        <p>Эта страница поможет очистить старые API ключи из локального хранилища браузера и применить новые ключи.</p>
+        
+        <h3>Текущие ключи в кэше:</h3>
+        <div id="current-keys"></div>
+        
+        <h3>Действия:</h3>
+        <button class="btn" onclick="clearStorage()">Очистить все API ключи</button>
+        <button class="btn" onclick="showCurrentKeys()">Показать текущие ключи</button>
+        <button class="btn" onclick="goToMain()">Перейти к приложению</button>
+        
+        <div id="result" style="margin-top: 20px;"></div>
+    </div>
+
+    <script>
+        function showCurrentKeys() {
+            const keys = [
+                'api_key_pool_state',
+                'mailslurp_api_key', 
+                'mailslurp_personal_api_key',
+                'current_user_key',
+                'use_personal_api',
+                'api_mode'
+            ];
+            
+            let html = '<ul>';
+            keys.forEach(key => {
+                const value = localStorage.getItem(key);
+                if (value) {
+                    const shortValue = value.length > 50 ? value.substring(0, 50) + '...' : value;
+                    html += `<li><strong>${key}:</strong> ${shortValue}</li>`;
+                } else {
+                    html += `<li><strong>${key}:</strong> <em>не найден</em></li>`;
+                }
+            });
+            html += '</ul>';
+            
+            document.getElementById('current-keys').innerHTML = html;
+        }
+        
+        function clearStorage() {
+            const keys = [
+                'api_key_pool_state',
+                'mailslurp_api_key', 
+                'mailslurp_personal_api_key',
+                'current_user_key',
+                'use_personal_api',
+                'api_mode'
+            ];
+            
+            let clearedCount = 0;
+            keys.forEach(key => {
+                if (localStorage.getItem(key)) {
+                    localStorage.removeItem(key);
+                    clearedCount++;
+                }
+            });
+            
+            document.getElementById('result').innerHTML = 
+                `<p class="success">✅ Очищено ${clearedCount} записей из localStorage</p>
+                <p>Теперь можете вернуться к приложению. Новые API ключи будут загружены автоматически.</p>`;
+            
+            showCurrentKeys();
+        }
+        
+        function goToMain() {
+            window.location.href = 'index.html';
+        }
+        
+        // Показываем текущие ключи при загрузке страницы
+        showCurrentKeys();
+    </script>
+</body>
+</html>

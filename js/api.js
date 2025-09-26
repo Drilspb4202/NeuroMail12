@@ -814,9 +814,10 @@ class MailSlurpApi {
     /**
      * Скачать вложение по ID
      * @param {string} attachmentId - ID вложения
+     * @param {string} fileName - Имя файла для скачивания
      * @returns {Promise<Blob>} - Данные вложения в виде Blob
      */
-    async downloadAttachment(attachmentId) {
+    async downloadAttachment(attachmentId, fileName) {
         try {
             console.log('Скачивание вложения с ID:', attachmentId);
             
@@ -832,12 +833,68 @@ class MailSlurpApi {
                 throw new Error(`Ошибка при скачивании вложения: ${response.status} ${response.statusText}`);
             }
             
-            // Возвращаем данные как Blob для скачивания
-            return await response.blob();
+            // Получаем данные как Blob для скачивания
+            const blob = await response.blob();
+            
+            // Создаем URL объект из Blob
+            const blobUrl = URL.createObjectURL(blob);
+            
+            // Создаем временную ссылку для скачивания
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = blobUrl;
+            a.download = fileName || 'attachment';
+            
+            // Добавляем ссылку в DOM и имитируем клик
+            document.body.appendChild(a);
+            a.click();
+            
+            // Удаляем ссылку и освобождаем URL
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+            }, 100);
+            
+            return blob;
         } catch (error) {
             console.error('Ошибка при скачивании вложения:', error);
             throw error;
         }
+    }
+    
+    /**
+     * Определить тип файла на основе MIME-типа
+     * @param {string} contentType - MIME-тип содержимого
+     * @returns {string} - Тип файла (image, document, archive, etc)
+     */
+    getFileTypeFromContentType(contentType) {
+        if (!contentType) return 'unknown';
+        
+        const type = contentType.toLowerCase();
+        
+        // Изображения
+        if (type.includes('image/')) return 'image';
+        
+        // Документы
+        if (type.includes('text/') || 
+            type.includes('application/pdf') || 
+            type.includes('application/msword') || 
+            type.includes('application/vnd.openxmlformats-officedocument') || 
+            type.includes('application/vnd.ms-')) return 'document';
+        
+        // Архивы
+        if (type.includes('application/zip') || 
+            type.includes('application/x-rar') || 
+            type.includes('application/x-7z')) return 'archive';
+        
+        // Аудио
+        if (type.includes('audio/')) return 'audio';
+        
+        // Видео
+        if (type.includes('video/')) return 'video';
+        
+        // По умолчанию
+        return 'file';
     }
 
     /**
@@ -1193,6 +1250,20 @@ class MailSlurpApi {
                 email.format = format;
                 
                 console.log(`Формат письма определен как: ${format}`);
+                
+                // Обрабатываем вложения, если они есть
+                if (email.attachments && email.attachments.length > 0) {
+                    console.log('Письмо содержит вложения:', email.attachments);
+                    
+                    // Добавляем дополнительную информацию для отображения и скачивания
+                    email.attachments = email.attachments.map(attachment => {
+                        return {
+                            ...attachment,
+                            // Добавляем информацию о типе файла для отображения иконки
+                            fileType: this.getFileTypeFromContentType(attachment.contentType)
+                        };
+                    });
+                }
                 
                 // Добавляем информацию о безопасности для внешних ссылок
                 if (format === 'html' && email.body) {

@@ -652,6 +652,113 @@ class MailSlurpUI {
         const emailBody = document.getElementById('email-body');
         emailBody.innerHTML = '';
         
+        // Блок вложений, если они есть
+        if (email.attachments && email.attachments.length > 0) {
+            const attachmentsContainer = document.createElement('div');
+            attachmentsContainer.className = 'email-attachments';
+            attachmentsContainer.innerHTML = `
+                <div class="attachments-header">
+                    <i class="fas fa-paperclip"></i> Вложения (${email.attachments.length})
+                </div>
+                <div class="attachments-list"></div>
+            `;
+
+            const attachmentsList = attachmentsContainer.querySelector('.attachments-list');
+
+            email.attachments.forEach(att => {
+                const item = document.createElement('div');
+                item.className = 'attachment-item';
+
+                let icon = 'fa-file';
+                if (att.fileType === 'image') icon = 'fa-file-image';
+                else if (att.fileType === 'document') icon = 'fa-file-alt';
+                else if (att.fileType === 'archive') icon = 'fa-file-archive';
+                else if (att.fileType === 'audio') icon = 'fa-file-audio';
+                else if (att.fileType === 'video') icon = 'fa-file-video';
+
+                let sizeText = '—';
+                if (att.sizeBytes) {
+                    const kb = att.sizeBytes / 1024;
+                    sizeText = kb < 1024 ? `${Math.round(kb)} KB` : `${Math.round(kb/102.4)/10} MB`;
+                }
+
+                const safeName = att.name || 'attachment';
+
+                item.innerHTML = `
+                    <div class="attachment-icon"><i class="fas ${icon}"></i></div>
+                    <div class="attachment-info">
+                        <div class="attachment-name" title="${safeName}">${safeName}</div>
+                        <div class="attachment-size">${sizeText}</div>
+                    </div>
+                    <div class="attachment-actions">
+                        <button class="btn btn-download" data-att-id="${att.id}" data-att-name="${safeName}"><i class="fas fa-download"></i></button>
+                    </div>
+                `;
+
+                attachmentsList.appendChild(item);
+            });
+
+            // Навешиваем обработчики скачивания
+            attachmentsList.querySelectorAll('.btn-download').forEach(btn => {
+                // Улучшенные сенсорные взаимодействия для мобильных
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    btn.style.transform = 'scale(0.95)';
+                    btn.style.backgroundColor = '#2980b9';
+                }, { passive: false });
+                
+                btn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    btn.style.transform = 'scale(1)';
+                    btn.style.backgroundColor = '#3498db';
+                    
+                    // Запускаем скачивание
+                    setTimeout(() => {
+                        const id = btn.getAttribute('data-att-id');
+                        const name = btn.getAttribute('data-att-name');
+                        if (id && this.app && this.app.api) {
+                            this.downloadAttachment(btn, id, name);
+                        }
+                    }, 50);
+                }, { passive: false });
+                
+                btn.addEventListener('touchcancel', () => {
+                    btn.style.transform = 'scale(1)';
+                    btn.style.backgroundColor = '#3498db';
+                });
+                
+                // Обычный click для desktop
+                btn.addEventListener('click', (e) => {
+                    // Предотвращаем двойное срабатывание на мобильных
+                    if (e.type === 'click' && window.innerWidth <= 768) {
+                        return;
+                    }
+                    
+                    const id = btn.getAttribute('data-att-id');
+                    const name = btn.getAttribute('data-att-name');
+                    if (id && this.app && this.app.api) {
+                        this.downloadAttachment(btn, id, name);
+                    }
+                });
+            });
+
+            emailBody.appendChild(attachmentsContainer);
+        }
+        
+        // Вспомогательная функция скачивания для кнопок
+        this.downloadAttachment = (btn, id, name) => {
+            const prevHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            this.app.api.downloadAttachment(id, name)
+                .then(() => this.showToast(`Вложение "${name}" скачано`, 'success'))
+                .catch(err => this.showToast(`Ошибка скачивания: ${err.message}`, 'error'))
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = prevHtml;
+                });
+        };
+        
         // Определяем формат письма
         const format = this.determineEmailFormat(email);
         

@@ -103,6 +103,15 @@ class MailSlurpUI {
     }
     
     /**
+     * Установить ссылку на приложение
+     * @param {MailSlurpApp} app - Экземпляр приложения
+     */
+    setApp(app) {
+        this.app = app;
+        console.log('Приложение установлено в UI:', this.app);
+    }
+    
+    /**
      * Настроить обработчики событий
      */
     setupEventListeners() {
@@ -654,6 +663,8 @@ class MailSlurpUI {
         
         // Блок вложений, если они есть
         if (email.attachments && email.attachments.length > 0) {
+            console.log('Обнаружены вложения в письме:', email.attachments);
+            
             const attachmentsContainer = document.createElement('div');
             attachmentsContainer.className = 'email-attachments';
             attachmentsContainer.innerHTML = `
@@ -665,7 +676,8 @@ class MailSlurpUI {
 
             const attachmentsList = attachmentsContainer.querySelector('.attachments-list');
 
-            email.attachments.forEach(att => {
+            email.attachments.forEach((att, index) => {
+                console.log(`Обрабатываем вложение ${index + 1}:`, att);
                 const item = document.createElement('div');
                 item.className = 'attachment-item';
 
@@ -700,46 +712,41 @@ class MailSlurpUI {
 
             // Навешиваем обработчики скачивания
             attachmentsList.querySelectorAll('.btn-download').forEach(btn => {
-                // Улучшенные сенсорные взаимодействия для мобильных
-                btn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    btn.style.transform = 'scale(0.95)';
-                    btn.style.backgroundColor = '#2980b9';
-                }, { passive: false });
-                
-                btn.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    btn.style.transform = 'scale(1)';
-                    btn.style.backgroundColor = '#3498db';
-                    
-                    // Запускаем скачивание
-                    setTimeout(() => {
-                        const id = btn.getAttribute('data-att-id');
-                        const name = btn.getAttribute('data-att-name');
-                        if (id && this.app && this.app.api) {
-                            this.downloadAttachment(btn, id, name);
-                        }
-                    }, 50);
-                }, { passive: false });
-                
-                btn.addEventListener('touchcancel', () => {
-                    btn.style.transform = 'scale(1)';
-                    btn.style.backgroundColor = '#3498db';
-                });
-                
-                // Обычный click для desktop
+                // Обработчик клика (для всех устройств)
                 btn.addEventListener('click', (e) => {
-                    // Предотвращаем двойное срабатывание на мобильных
-                    if (e.type === 'click' && window.innerWidth <= 768) {
-                        return;
-                    }
+                    e.preventDefault();
+                    e.stopPropagation();
                     
                     const id = btn.getAttribute('data-att-id');
                     const name = btn.getAttribute('data-att-name');
-                    if (id && this.app && this.app.api) {
+                    
+                    console.log('Клик по кнопке скачивания:', { id, name });
+                    
+                    if (id && name) {
                         this.downloadAttachment(btn, id, name);
+                    } else {
+                        console.error('Отсутствуют ID или имя вложения');
+                        this.showToast('Ошибка: Некорректные данные вложения', 'error');
                     }
                 });
+                
+                // Улучшенные сенсорные взаимодействия для мобильных
+                if (window.innerWidth <= 768) {
+                    btn.addEventListener('touchstart', (e) => {
+                        btn.style.transform = 'scale(0.95)';
+                        btn.style.backgroundColor = '#2980b9';
+                    });
+                    
+                    btn.addEventListener('touchend', (e) => {
+                        btn.style.transform = 'scale(1)';
+                        btn.style.backgroundColor = '#3498db';
+                    });
+                    
+                    btn.addEventListener('touchcancel', () => {
+                        btn.style.transform = 'scale(1)';
+                        btn.style.backgroundColor = '#3498db';
+                    });
+                }
             });
 
             emailBody.appendChild(attachmentsContainer);
@@ -747,12 +754,41 @@ class MailSlurpUI {
         
         // Вспомогательная функция скачивания для кнопок
         this.downloadAttachment = (btn, id, name) => {
+            console.log('Начало скачивания вложения:', { id, name });
+            
+            // Получаем API разными способами
+            let api = null;
+            
+            if (this.app && this.app.api) {
+                api = this.app.api;
+                console.log('API получен через this.app.api');
+            } else if (window.mailSlurpApi) {
+                api = window.mailSlurpApi;
+                console.log('API получен через window.mailSlurpApi');
+            } else if (window.app && window.app.api) {
+                api = window.app.api;
+                console.log('API получен через window.app.api');
+            }
+            
+            if (!api) {
+                console.error('Ошибка: API не найден');
+                this.showToast('Ошибка: API не инициализирован', 'error');
+                return;
+            }
+            
             const prevHtml = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            this.app.api.downloadAttachment(id, name)
-                .then(() => this.showToast(`Вложение "${name}" скачано`, 'success'))
-                .catch(err => this.showToast(`Ошибка скачивания: ${err.message}`, 'error'))
+            
+            api.downloadAttachment(id, name)
+                .then(() => {
+                    console.log('Вложение успешно скачано:', name);
+                    this.showToast(`Вложение "${name}" скачано`, 'success');
+                })
+                .catch(err => {
+                    console.error('Ошибка при скачивании вложения:', err);
+                    this.showToast(`Ошибка скачивания: ${err.message}`, 'error');
+                })
                 .finally(() => {
                     btn.disabled = false;
                     btn.innerHTML = prevHtml;

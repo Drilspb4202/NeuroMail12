@@ -47,6 +47,15 @@ class MailSlurpApp {
             // Инициализируем пользовательский интерфейс
             this.ui = new MailSlurpUI();
             
+            // Устанавливаем ссылку на приложение в UI
+            this.ui.setApp(this);
+            
+            // Устанавливаем глобальные переменные для доступа из любого места
+            window.app = this;
+            window.mailSlurpApi = this.api;
+            
+            console.log('Глобальные переменные установлены:', { app: window.app, api: window.mailSlurpApi });
+            
             // Привязываем обработчики событий
             this.bindUIEvents();
             

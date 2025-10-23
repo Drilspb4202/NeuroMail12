@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Очистка API ключей - NeuroMail</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .status {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button.danger {
+            background-color: #dc3545;
+        }
+        button.danger:hover {
+            background-color: #c82333;
+        }
+        .key-list {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .log {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Очистка и обновление API ключей</h1>
+        
+        <div id="status" class="status info">
+            Готов к очистке API ключей. Нажмите кнопку ниже для выполнения операции.
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <button onclick="clearApiKeys()">🧹 Очистить API ключи</button>
+            <button onclick="checkCurrentKeys()" style="background-color: #28a745;">🔍 Проверить текущие ключи</button>
+            <button onclick="forceRefresh()" style="background-color: #ffc107; color: #000;">🔄 Принудительное обновление</button>
+        </div>
+        
+        <div id="currentKeys" style="display: none;">
+            <h3>Текущие ключи в localStorage:</h3>
+            <div id="keysList" class="key-list"></div>
+        </div>
+        
+        <div id="log" class="log" style="display: none;"></div>
+        
+        <div style="margin-top: 30px; padding: 20px; background-color: #e9ecef; border-radius: 5px;">
+            <h3>ℹ️ Информация</h3>
+            <p>Эта страница поможет вам:</p>
+            <ul>
+                <li>Очистить все сохраненные API ключи из localStorage</li>
+                <li>Принудительно обновить состояние пула ключей</li>
+                <li>Проверить текущие ключи в системе</li>
+                <li>Применить новые API ключи из кода</li>
+            </ul>
+            <p><strong>Внимание:</strong> После очистки система автоматически загрузит новые ключи из обновленного кода.</p>
+        </div>
+    </div>
+
+    <script>
+        let logElement = null;
+        
+        function log(message) {
+            console.log(message);
+            if (logElement) {
+                logElement.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+                logElement.scrollTop = logElement.scrollHeight;
+            }
+        }
+        
+        function showStatus(message, type = 'info') {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+        }
+        
+        function clearApiKeys() {
+            logElement = document.getElementById('log');
+            logElement.style.display = 'block';
+            logElement.textContent = '';
+            
+            showStatus('Выполняется очистка API ключей...', 'info');
+            log('Начинаем очистку API ключей...');
+            
+            try {
+                // Список ключей для удаления
+                const keysToRemove = [
+                    'api_key_pool_state',
+                    'current_user_key',
+                    'mailslurp_api_key',
+                    'mailslurp_personal_api_key',
+                    'use_personal_api',
+                    'api_mode',
+                    'api_keys_data',
+                    'user_prefix'
+                ];
+                
+                let removedCount = 0;
+                
+                keysToRemove.forEach(key => {
+                    if (localStorage.getItem(key)) {
+                        localStorage.removeItem(key);
+                        log(`Удален ключ: ${key}`);
+                        removedCount++;
+                    } else {
+                        log(`Ключ не найден: ${key}`);
+                    }
+                });
+                
+                // Дополнительная очистка - удаляем все ключи, содержащие 'api' или 'key'
+                const allKeys = Object.keys(localStorage);
+                allKeys.forEach(key => {
+                    if (key.toLowerCase().includes('api') || key.toLowerCase().includes('key')) {
+                        if (!keysToRemove.includes(key)) {
+                            localStorage.removeItem(key);
+                            log(`Удален дополнительный ключ: ${key}`);
+                            removedCount++;
+                        }
+                    }
+                });
+                
+                log(`Очистка завершена. Удалено ключей: ${removedCount}`);
+                
+                // Принудительно обновляем состояние
+                setTimeout(() => {
+                    forceRefresh();
+                }, 1000);
+                
+                showStatus(`✅ Очистка завершена! Удалено ${removedCount} ключей.`, 'success');
+                
+            } catch (error) {
+                log(`Ошибка при очистке: ${error.message}`);
+                showStatus(`❌ Ошибка при очистке: ${error.message}`, 'error');
+            }
+        }
+        
+        function checkCurrentKeys() {
+            logElement = document.getElementById('log');
+            logElement.style.display = 'block';
+            logElement.textContent = '';
+            
+            showStatus('Проверка текущих ключей...', 'info');
+            log('Проверяем текущие ключи в localStorage...');
+            
+            const allKeys = Object.keys(localStorage);
+            const apiKeys = allKeys.filter(key => 
+                key.toLowerCase().includes('api') || 
+                key.toLowerCase().includes('key') ||
+                key.toLowerCase().includes('mailslurp')
+            );
+            
+            const keysListElement = document.getElementById('keysList');
+            const currentKeysElement = document.getElementById('currentKeys');
+            
+            if (apiKeys.length > 0) {
+                keysListElement.innerHTML = apiKeys.map(key => {
+                    const value = localStorage.getItem(key);
+                    const displayValue = value.length > 50 ? value.substring(0, 50) + '...' : value;
+                    return `${key}: ${displayValue}`;
+                }).join('\n');
+                currentKeysElement.style.display = 'block';
+                log(`Найдено ${apiKeys.length} ключей, связанных с API`);
+            } else {
+                keysListElement.textContent = 'API ключи не найдены';
+                currentKeysElement.style.display = 'block';
+                log('API ключи не найдены в localStorage');
+            }
+            
+            showStatus(`🔍 Проверка завершена. Найдено ${apiKeys.length} ключей.`, 'success');
+        }
+        
+        function forceRefresh() {
+            logElement = document.getElementById('log');
+            logElement.style.display = 'block';
+            logElement.textContent = '';
+            
+            showStatus('Принудительное обновление состояния...', 'info');
+            log('Выполняем принудительное обновление состояния...');
+            
+            try {
+                // Удаляем все связанные с API ключи
+                const keysToRemove = [
+                    'api_key_pool_state',
+                    'current_user_key',
+                    'mailslurp_api_key',
+                    'mailslurp_personal_api_key',
+                    'use_personal_api',
+                    'api_mode',
+                    'api_keys_data',
+                    'user_prefix'
+                ];
+                
+                keysToRemove.forEach(key => {
+                    localStorage.removeItem(key);
+                    log(`Удален ключ: ${key}`);
+                });
+                
+                // Устанавливаем новые ключи из обновленного кода
+                const newApiKeys = [
+                    {
+                        key: '69c1983367897df2e0f28e68eeab1567312e7b8cb63b32924b13f09b4e5ef959',
+                        usageCount: 0,
+                        lastUsed: null,
+                        isExhausted: false,
+                        monthlyReset: new Date().getTime()
+                    },
+                    {
+                        key: '0d71400fe28471738cf0b933ffaa701d9ce7d9e09e07d52c271753c387f8bfcb',
+                        usageCount: 0,
+                        lastUsed: null,
+                        isExhausted: false,
+                        monthlyReset: new Date().getTime()
+                    },
+                    {
+                        key: '07da08f927f3c354bddcba093f38ee83f37ee265c7e1000e35a4ef236e5a43cb',
+                        usageCount: 0,
+                        lastUsed: null,
+                        isExhausted: false,
+                        monthlyReset: new Date().getTime()
+                    }
+                ];
+                
+                // Сохраняем новое состояние пула ключей
+                const newState = {
+                    publicKeys: newApiKeys,
+                    currentKeyIndex: 0
+                };
+                
+                localStorage.setItem('api_key_pool_state', JSON.stringify(newState));
+                localStorage.setItem('mailslurp_api_key', newApiKeys[0].key);
+                localStorage.setItem('api_mode', 'public');
+                
+                log('Установлены новые API ключи:');
+                newApiKeys.forEach((keyData, index) => {
+                    log(`  Ключ ${index + 1}: ${keyData.key.substring(0, 20)}...`);
+                });
+                
+                log('Принудительное обновление завершено успешно');
+                showStatus('✅ Принудительное обновление завершено! Новые ключи установлены.', 'success');
+                
+            } catch (error) {
+                log(`Ошибка при принудительном обновлении: ${error.message}`);
+                showStatus(`❌ Ошибка при обновлении: ${error.message}`, 'error');
+            }
+        }
+        
+        // Автоматическая проверка при загрузке страницы
+        window.addEventListener('load', () => {
+            log('Страница очистки API ключей загружена');
+            log('Готов к выполнению операций с API ключами');
+        });
+    </script>
+</body>
+</html>
